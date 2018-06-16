@@ -1,9 +1,13 @@
 package org.bmnepali.imageupload;
 
+import android.Manifest;
+import android.annotation.TargetApi;
 import android.content.CursorLoader;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
@@ -12,6 +16,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.android.volley.Request;
@@ -22,16 +27,26 @@ import com.android.volley.request.SimpleMultiPartRequest;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+
 public class MainActivity extends AppCompatActivity {
     private ImageView imageView;
     private Button btnChoose, btnUpload;
     private ProgressBar progressBar;
 
-    public static String BASE_URL = "http://192.168.0.100:8888/phpcode/server/upload.php";
+    //public static String BASE_URL = "http://192.168.0.100:8888/phpcode/server/upload.php";
+    public static String BASE_URL = "http://192.168.199.2:8082/fileUpload";
     static final int PICK_IMAGE_REQUEST = 1;
     String filePath;
 
 
+    /*** add permission apply ***/
+    private String permissionInfo;
+    private boolean CAN_WRITE_EXTERNAL_STORAGE = true;
+    private boolean CAN_RECORD_AUDIO = true;
+    private static final int SDK_PERMISSION_REQUEST = 127;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -40,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
         imageView = (ImageView) findViewById(R.id.imageView);
         btnChoose = (Button) findViewById(R.id.button_choose);
         btnUpload = (Button) findViewById(R.id.button_upload);
-
+        getPersimmions();
         btnChoose.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -114,7 +129,8 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        smr.addFile("image", imagePath);
+        smr.addFile("file", imagePath);
+        //smr.
         MyApplication.getInstance().addToRequestQueue(smr);
 
     }
@@ -128,6 +144,87 @@ public class MainActivity extends AppCompatActivity {
         String result = cursor.getString(column_index);
         cursor.close();
         return result;
+    }
+
+    /** **/
+    @TargetApi(23)
+    protected void getPersimmions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            ArrayList<String> permissions = new ArrayList<String>();
+            // 读写权限
+            if (addPermission(permissions, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                permissionInfo += "Manifest.permission.WRITE_EXTERNAL_STORAGE Deny \n";
+            }
+            // 麦克风权限
+            if (addPermission(permissions, Manifest.permission.RECORD_AUDIO)) {
+                permissionInfo += "Manifest.permission.WRITE_EXTERNAL_STORAGE Deny \n";
+            }
+            if (permissions.size() > 0) {
+                requestPermissions(permissions.toArray(new String[permissions.size()]), SDK_PERMISSION_REQUEST);
+            }
+        }
+    }
+
+    @TargetApi(23)
+    private boolean addPermission(ArrayList<String> permissionsList, String permission) {
+        if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) { // 如果应用没有获得对应权限,则添加到列表中,准备批量申请
+            if (shouldShowRequestPermissionRationale(permission)) {
+                return true;
+            } else {
+                permissionsList.add(permission);
+                return false;
+            }
+
+        } else {
+            return true;
+        }
+    }
+
+    @TargetApi(23)
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        // TODO Auto-generated method stub
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode) {
+            case SDK_PERMISSION_REQUEST:
+                Map<String, Integer> perms = new HashMap<String, Integer>();
+                // Initial
+                perms.put(Manifest.permission.WRITE_EXTERNAL_STORAGE, PackageManager.PERMISSION_GRANTED);
+                perms.put(Manifest.permission.RECORD_AUDIO, PackageManager.PERMISSION_GRANTED);
+                // Fill with results
+                for (int i = 0; i < permissions.length; i++)
+                    perms.put(permissions[i], grantResults[i]);
+                // Check for ACCESS_FINE_LOCATION
+                if (perms.get(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    // Permission Denied
+                    CAN_WRITE_EXTERNAL_STORAGE = false;
+                    Toast.makeText(this, "禁用图片权限将导致发送图片功能无法使用！", Toast.LENGTH_SHORT)
+                            .show();
+                }
+                /**
+                 if (perms.get(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                 CAN_RECORD_AUDIO = false;
+                 Toast.makeText(this, "禁用录制音频权限将导致语音功能无法使用！", Toast.LENGTH_SHORT)
+                 .show();
+                 }
+                 **/
+
+                //apply permisssion successfully
+                /***
+                list_name.add("volley upload demo");
+                stringCommonAdapter = new CommonAdapter<String>(this,R.layout.item_content, list_name) {
+                    @Override
+                    protected void convert(ViewHolder viewHolder, String item, int position) {
+                        TextView tv_content = viewHolder.getView(R.id.tv_content);
+                        tv_content.setText(item);
+                    }
+                };
+                lv.setAdapter(stringCommonAdapter);
+                 ***/
+                break;
+            default:
+                super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
     }
 
 }
